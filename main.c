@@ -1,7 +1,6 @@
 /*
 TODO
-. GitHub
-. basic turn system (player -> enemy)
+. message color for enemy action
 . implement closing doors (what if there are multiple door adjecent?)
 . HP (and HP bar)
 . EXP (and EXP bar)
@@ -139,46 +138,8 @@ void start_player_turn(player* Player, int dx, int dy)
                     exit(1);
                 }
                 
-                // Process combat
-                // TODO(Takuya): weapon base damage
-                combat_stat PlayerCombatStat = {0};
-                PlayerCombatStat.combat_skill = Player->combat_skill;
-                PlayerCombatStat.strength = Player->strength;
-                PlayerCombatStat.weapon_base_damage = 4;
-                PlayerCombatStat.toughness = Player->toughness;
-                PlayerCombatStat.current_hp = &Player->current_hp;
-                PlayerCombatStat.is_dead = &Player->is_dead;
+                process_combat(Player, Monster, 1);
                 
-                combat_stat MonsterCombatStat = {0};
-                MonsterCombatStat.combat_skill = Monster->combat_skill;
-                MonsterCombatStat.strength = Monster->strength;
-                MonsterCombatStat.weapon_base_damage = 4;
-                MonsterCombatStat.toughness = Monster->toughness;
-                MonsterCombatStat.current_hp = &Monster->current_hp;
-                MonsterCombatStat.is_dead = &Monster->is_dead;
-                
-                int is_hit = 0;
-                int damage = 0;
-                is_hit = combat_do(&PlayerCombatStat, &MonsterCombatStat, &damage);
-                
-                if (is_hit != 0)
-                {
-                    char txt[MAX_MESSAGE_LENGTH] = { 0 };
-                    sprintf_s(txt, sizeof(char) * MAX_MESSAGE_LENGTH, "You hit a %s. %d damage!", Monster->name, damage);
-                    message_insert(txt, MESSAGE_COMBAT);
-                    // If monster is dead after the attack, write a message.
-                    if (Monster->is_dead != 0)
-                    {
-                        memset(txt, 0, sizeof(txt));
-                        sprintf_s(txt, sizeof(char) * MAX_MESSAGE_LENGTH, "You defeated a %s", 
-                                  Monster->name);
-                        message_insert(txt, MESSAGE_COMBAT);
-                    }
-                }
-                else
-                {
-                    message_insert("You missed.", MESSAGE_COMBAT);
-                }
             }break;
             
         }
@@ -281,40 +242,83 @@ void start_monster_turn(monster **monsters, player *Player)
             {
                 
                 // monster attack player
-                int damage = 0;
-                int is_hit = 0;
-                
-                combat_stat monster_stat = {0};
-                monster_stat.combat_skill = monsters[i]->combat_skill;
-                monster_stat.strength = monsters[i]->strength;
-                monster_stat.weapon_base_damage = monsters[i]->base_damage;
-                monster_stat.toughness = monsters[i]->toughness;
-                monster_stat.current_hp = &monsters[i]->current_hp;
-                monster_stat.is_dead = &monsters[i]->is_dead;
-                
-                combat_stat player_stat = {0};
-                player_stat.combat_skill = Player->combat_skill;
-                player_stat.strength = Player->strength;
-                // TODO(Takuya): weapon base damage
-                player_stat.weapon_base_damage = 4;
-                player_stat.toughness = Player->toughness;
-                player_stat.current_hp = &Player->current_hp;
-                player_stat.is_dead = &Player->is_dead;
-                
-                is_hit = combat_do(&monster_stat, &player_stat, &damage);
-                
-                if (is_hit != 0)
-                {
-                    message_insert("A Monster hit you!", MESSAGE_NARATIVE);
-                }
-                else
-                {
-                    message_insert("Monster attacked you, but missed.", MESSAGE_NARATIVE);
-                }
+                process_combat(Player, monsters[i], 0);
             }
         }
         
     }
     
     is_player_turn = 1;
+}
+
+void process_combat(player* Player, monster *Monster, int is_player_attacking)
+{
+    // TODO(Takuya): weapon base damage
+    // Set combat stats for passing to combat function
+    combat_stat PlayerCombatStat = {0};
+    PlayerCombatStat.combat_skill = Player->combat_skill;
+    PlayerCombatStat.strength = Player->strength;
+    PlayerCombatStat.weapon_base_damage = 4;
+    PlayerCombatStat.toughness = Player->toughness;
+    PlayerCombatStat.current_hp = &Player->current_hp;
+    PlayerCombatStat.is_dead = &Player->is_dead;
+    
+    combat_stat MonsterCombatStat = {0};
+    MonsterCombatStat.combat_skill = Monster->combat_skill;
+    MonsterCombatStat.strength = Monster->strength;
+    MonsterCombatStat.weapon_base_damage = 4;
+    MonsterCombatStat.toughness = Monster->toughness;
+    MonsterCombatStat.current_hp = &Monster->current_hp;
+    MonsterCombatStat.is_dead = &Monster->is_dead;
+    
+    int is_hit = 0;
+    int damage = 0;
+    
+    // Call combat function
+    if (is_player_attacking != 0)
+    {
+        is_hit = combat_do(&PlayerCombatStat, &MonsterCombatStat, &damage);
+    }
+    else
+    {
+        is_hit = combat_do(&MonsterCombatStat,&PlayerCombatStat, &damage);
+    }
+    
+    // Name setting for both attacker & defender
+    char *attacker_name = '\0';
+    char *defender_name = '\0';
+    if (is_player_attacking != 0)
+    {
+        attacker_name = "You";
+        defender_name = Monster->name;
+    }
+    else
+    {
+        attacker_name = Monster->name;
+        defender_name = "You";
+    }
+    
+    // A process on hit
+    if (is_hit != 0)
+    {
+        char txt[MAX_MESSAGE_LENGTH] = { 0 };
+        sprintf_s(txt, sizeof(char) * MAX_MESSAGE_LENGTH, "%s hit %s. %d damage!",attacker_name ,defender_name, damage);
+        message_insert(txt, MESSAGE_COMBAT);
+        
+        // TODO(Takuya): add process for character death
+        // If monster is dead after the attack, write a message.
+        if (Monster->is_dead != 0)
+        {
+            memset(txt, 0, sizeof(txt));
+            sprintf_s(txt, sizeof(char) * MAX_MESSAGE_LENGTH, "You defeated a %s", 
+                      Monster->name);
+            message_insert(txt, MESSAGE_COMBAT);
+        }
+    }
+    else
+    {
+        char txt[MAX_MESSAGE_LENGTH] = { 0 };
+        sprintf_s(txt, sizeof(char) * MAX_MESSAGE_LENGTH, "%s missed.", attacker_name);
+        message_insert(txt, MESSAGE_COMBAT);
+    }
 }

@@ -17,4 +17,5 @@ typedef struct monster monster;
 static int resolve_input(int *v_dx, int *v_dy);
 static void start_player_turn(player *Player, int dx, int dy);
 static void start_monster_turn(monster **monsters, player *Player);
+static void process_combat(player *Player, monster *Monster, int is_player_attacking);
 #endif
