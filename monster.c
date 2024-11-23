@@ -1,8 +1,11 @@
+/*
+Monster related functions.
+Dependency: map.h
+*/
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include "monster.h"
-//#include "raylib.h"
 #include "map.h"
 
 static monster **monsters;
@@ -34,7 +37,7 @@ void monster_create(void)
 		strcpy_s(Monster->name, sizeof(char) * MAX_MONSTER_NAME, "Giant Spider");
 		// TODO: decide randomly
 		Monster->id = i;
-		Monster->hp = 2;
+		Monster->hp = 20;
 		Monster->current_hp = Monster->hp;
 		Monster->strength = 1;
 		Monster->toughness = 2;

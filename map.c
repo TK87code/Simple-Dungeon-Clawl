@@ -1,7 +1,6 @@
 #include <string.h>
 #include "raylib.h"
 #include "map.h"
-#include "monster.h"
 
 static int map[MAP_HEIGHT][MAP_WIDTH] =
 {
@@ -61,22 +60,10 @@ static int buffer[MAP_HEIGHT][MAP_WIDTH] = { - 1 };
 
 void map_init(void)
 {
-	memcpy(buffer, map, sizeof(map));
+    memcpy(buffer, map, sizeof(map));
 }
 
 void map_draw(int center_x, int center_y, int tile_size, int render_range_x, int render_range_y){
-	memcpy(buffer, map, sizeof(map));
-	
-	// Add monster on the map to draw
-	monster **monsters = monster_get_all();
-	for (int i = 0; i < MAX_MONSTER_NUMBER; i++)
-	{
-		monster *Monster = monsters[i];
-		if (Monster != NULL && Monster->is_dead == 0)
-		{
-			buffer[Monster->map_pos_y][Monster->map_pos_x] = MAP_ENEMY;
-		}
-	}
 	
 	int draw_starts_y = 0;
 	int draw_starts_x = 0;
@@ -105,7 +92,7 @@ void map_draw(int center_x, int center_y, int tile_size, int render_range_x, int
 				case MAP_OPEND_DOOR:
                 DrawRectangle(draw_starts_x * tile_size, draw_starts_y * tile_size, tile_size, tile_size, BROWN);
                 break;
-				case MAP_ENEMY:
+				case MAP_MONSTER:
                 DrawRectangle(draw_starts_x * tile_size, draw_starts_y * tile_size, tile_size, tile_size, RED);
                 break;
 			}
@@ -115,11 +102,13 @@ void map_draw(int center_x, int center_y, int tile_size, int render_range_x, int
 		draw_starts_y++;
 	}
     
+    // Back to "empty map" after drawn
+    memcpy(buffer, map, sizeof(map));
 }
 
 int map_check_collision(int map_id)
 {
-	if (map_id == MAP_WALL || map_id == MAP_CLOSED_DOOR || map_id == MAP_ENEMY)
+	if (map_id == MAP_WALL || map_id == MAP_CLOSED_DOOR || map_id == MAP_MONSTER)
 	{
 		return(1);
 	}
@@ -137,4 +126,8 @@ int map_get_cell(int x, int y)
 void map_open_door(int x, int y)
 {
 	map[y][x] = MAP_OPEND_DOOR;
+}
+
+void map_add(int x, int y, int type){
+    buffer[y][x] = type;
 }

@@ -1,7 +1,6 @@
 /*
 TODO
 . GitHub
-. monster.h dependecy in map.c
 . basic turn system (player -> enemy)
 . implement closing doors (what if there are multiple door adjecent?)
 . HP (and HP bar)
@@ -29,7 +28,7 @@ TODO
 
 // TODO: Erase this later
 static bool debug_mode = false;
-static bool is_player_turn = true;
+static int is_player_turn = 1;
 
 int main(void){
 	// Window Init
@@ -53,19 +52,41 @@ int main(void){
     
 	while (!WindowShouldClose())
 	{
-		int offset_x = TILE_SIZE * MAP_RENDER_RANGE_X;
-		int offset_y = TILE_SIZE * MAP_RENDER_RANGE_Y;
-		
-		// movement key 
-		resolve_input(Player);
+        // Input
+        int dx, dy;
+        dx = 0;
+        dy = 0;
         
-		BeginDrawing();
+        int turn_consumed = 0;
+        turn_consumed = resolve_input(&dx, &dy);
+        
+        // Update
+        //Adding monster to the map
+        monster **monsters = monster_get_all();
+        for (int i = 0; i < MAX_MONSTER_NUMBER; i++){
+            if (monsters[i] != NULL && monsters[i]->is_dead == 0){
+                map_add(monsters[i]->map_pos_x, monsters[i]->map_pos_y, MAP_MONSTER);
+            }
+        }
+        
+        // Player Action 
+        if (turn_consumed != 0){
+            start_player_turn(Player, dx, dy);
+            is_player_turn = 0;
+        }
+        
+        // Monster Action
+        if (is_player_turn == 0){
+            start_monster_turn(monsters, Player);
+        }
+        
+        
+        BeginDrawing();
         
 		ClearBackground(BLACK);
         
-		// --- TODO: Eras this later ---
-		if (debug_mode == true)
-		{
+		// --- TODO: Erase this later ---
+		if (debug_mode == true){
 			DrawRectangle(MAP_AREA_WIDTH, 0, SCREEN_WIDTH - MAP_AREA_WIDTH, MAP_AREA_HEIGHT, GREEN); // Info Area
 			DrawRectangle(0, MAP_AREA_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - MAP_AREA_HEIGHT, RED); // Message Area
 		}
@@ -75,9 +96,6 @@ int main(void){
         
 		//Draw Player at center of map area
 		DrawRectangle(TILE_SIZE * MAP_RENDER_RANGE_X, TILE_SIZE * MAP_RENDER_RANGE_Y, TILE_SIZE, TILE_SIZE, BLUE);
-        
-		//Draw monsters
-		//monster_draw(TILE_SIZE, offset_x, offset_y);
         
 		// Show texts
 		message_show(TEXT_SIZE , 10, MAP_AREA_HEIGHT + 10);
@@ -93,48 +111,8 @@ int main(void){
 	return 0;
 }
 
-void resolve_input(player* Player)
+void start_player_turn(player* Player, int dx, int dy)
 {
-	int dx = 0;
-	int dy = 0;
-    
-	if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_KP_6))
-	{
-		dx += 1;
-	}
-	else if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_KP_4))
-	{
-		dx -= 1 ;
-	}
-	else if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_KP_8))
-	{
-		dy -= 1;
-	}
-	else if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_KP_2))
-	{
-		dy += 1;
-	}
-	else if (IsKeyPressed(KEY_KP_7))
-	{
-		dx -= 1;
-		dy -= 1;
-	}
-	else if (IsKeyPressed(KEY_KP_9))
-	{
-		dx += 1;
-		dy -= 1;
-	}
-	else if (IsKeyPressed(KEY_KP_1))
-	{
-		dx -= 1;
-		dy += 1;
-	}
-	else if (IsKeyPressed(KEY_KP_3))
-	{
-		dx += 1;
-		dy += 1;
-	}
-    
 	int map_cell = map_get_cell(Player->map_pos_x + dx, Player->map_pos_y + dy);
     
 	if (map_check_collision(map_cell))
@@ -149,7 +127,7 @@ void resolve_input(player* Player)
                 message_insert("The door opens quietly.", MESSAGE_NARATIVE);
             }break;
             
-            case MAP_ENEMY:{
+            case MAP_MONSTER:{
                 
                 // Get monster at the position where is about to move.
                 int monster_id = monster_get_id_from_xy(Player->map_pos_x + dx, Player->map_pos_y + dy);
@@ -211,6 +189,57 @@ void resolve_input(player* Player)
         Player->map_pos_x += dx;
         Player->map_pos_y += dy;
     }
+}
+
+// Return 0 if the player comsumed the turn, set dx&dy in the address given.
+int resolve_input(int *v_dx, int *v_dy)
+{
+    int turn_consumed = 0;
+    
+	if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_KP_6))
+	{
+		*v_dx = 1;
+        turn_consumed = 1;
+	}
+	else if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_KP_4))
+	{
+		*v_dx = -1;
+        turn_consumed = 1;
+	}
+	else if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_KP_8))
+	{
+		*v_dy = -1;
+        turn_consumed = 1;
+	}
+	else if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_KP_2))
+	{
+		*v_dy = 1;
+        turn_consumed = 1;
+	}
+	else if (IsKeyPressed(KEY_KP_7))
+	{
+		*v_dx = -1;
+		*v_dy = -1;
+        turn_consumed = 1;
+	}
+	else if (IsKeyPressed(KEY_KP_9))
+	{
+		*v_dx = 1;
+		*v_dy = -1;
+        turn_consumed = 1;
+	}
+	else if (IsKeyPressed(KEY_KP_1))
+	{
+		*v_dx = -1;
+		*v_dy = 1;
+        turn_consumed = 1;
+	}
+	else if (IsKeyPressed(KEY_KP_3))
+	{
+		*v_dx = 1;
+		*v_dy = 1;
+        turn_consumed = 1;
+    }
     
     // Exit Game
     if (IsKeyPressed(KEY_ESCAPE))
@@ -229,5 +258,63 @@ void resolve_input(player* Player)
         {
             debug_mode = true;
         }
+        
     }
+    
+    return turn_consumed;
+}
+
+void start_monster_turn(monster **monsters, player *Player)
+{
+    //check if any monster is adjecent to a player
+    for (int i = 0; i < MAX_MONSTER_NUMBER; i++)
+    {
+        
+        if (monsters[i]->map_pos_x == Player->map_pos_x ||
+            monsters[i]->map_pos_x == Player->map_pos_x + 1 ||
+            monsters[i]->map_pos_x == Player->map_pos_x - 1)
+        {
+            
+            if (monsters[i]->map_pos_y == Player->map_pos_y ||
+                monsters[i]->map_pos_y == Player->map_pos_y + 1 ||
+                monsters[i]->map_pos_y == Player->map_pos_y -1)
+            {
+                
+                // monster attack player
+                int damage = 0;
+                int is_hit = 0;
+                
+                combat_stat monster_stat = {0};
+                monster_stat.combat_skill = monsters[i]->combat_skill;
+                monster_stat.strength = monsters[i]->strength;
+                monster_stat.weapon_base_damage = monsters[i]->base_damage;
+                monster_stat.toughness = monsters[i]->toughness;
+                monster_stat.current_hp = &monsters[i]->current_hp;
+                monster_stat.is_dead = &monsters[i]->is_dead;
+                
+                combat_stat player_stat = {0};
+                player_stat.combat_skill = Player->combat_skill;
+                player_stat.strength = Player->strength;
+                // TODO(Takuya): weapon base damage
+                player_stat.weapon_base_damage = 4;
+                player_stat.toughness = Player->toughness;
+                player_stat.current_hp = &Player->current_hp;
+                player_stat.is_dead = &Player->is_dead;
+                
+                is_hit = combat_do(&monster_stat, &player_stat, &damage);
+                
+                if (is_hit != 0)
+                {
+                    message_insert("A Monster hit you!", MESSAGE_NARATIVE);
+                }
+                else
+                {
+                    message_insert("Monster attacked you, but missed.", MESSAGE_NARATIVE);
+                }
+            }
+        }
+        
+    }
+    
+    is_player_turn = 1;
 }

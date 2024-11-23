@@ -12,7 +12,7 @@ typedef struct combat_stat
 }combat_stat;
 
 // Public funcs
-extern int combat_do(combat_stat *attacker, combat_stat *monster, int* damage);
+extern int combat_do(combat_stat *attacker, combat_stat *defender, int* damage);
 
 // Internal funcs
 static int combat_roll_to_hit(int attacker_combat_skill, int defender_combat_skill, int *winner_success_level);

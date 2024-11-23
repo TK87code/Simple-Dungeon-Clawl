@@ -11,7 +11,7 @@ enum {
 	MAP_WALL,
 	MAP_CLOSED_DOOR,
 	MAP_OPEND_DOOR,
-	MAP_ENEMY,
+	MAP_MONSTER,
 };
 
 extern void map_init(void);
@@ -19,6 +19,6 @@ extern void map_draw(int center_x, int center_y, int tile_size, int render_range
 extern int map_get_cell(int x, int y);
 extern int map_check_collision(int map_id);
 extern void map_open_door(int x, int y);
-
+extern void map_add(int x, int y, int type);
 
 #endif

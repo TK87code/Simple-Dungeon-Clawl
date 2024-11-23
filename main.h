@@ -12,7 +12,9 @@
 #define MAP_RENDER_RANGE_X 14
 
 typedef struct player player;
+typedef struct monster monster;
 
-static void resolve_input(player *Player);
-
+static int resolve_input(int *v_dx, int *v_dy);
+static void start_player_turn(player *Player, int dx, int dy);
+static void start_monster_turn(monster **monsters, player *Player);
 #endif
