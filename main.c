@@ -1,7 +1,10 @@
 /*
 TODO
+. map.c refactoring
+. combat.c refactoring
 . message color for enemy action
 . implement closing doors (what if there are multiple door adjecent?)
+. simple enemy AI (move randomly and come toward player when they see)
 . HP (and HP bar)
 . EXP (and EXP bar)
 . implement "key pressing down movement"
@@ -24,9 +27,69 @@ TODO
 #include "combat.h"
 #include "monster.h"
 
+enum map_tiles{
+    TILE_GROUND,
+    TILE_WALL,
+    TILE_CLOSED_DOOR,
+    TILE_OPENED_DOOR,
+};
 
-// TODO: Erase this later
-static bool debug_mode = false;
+static int map[MAP_HEIGHT][MAP_WIDTH] =
+{
+	{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,1,1,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,2,0,2,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+	{1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+};
+
+
+static bool debug_mode = false; // TODO: Erase this after production
 static int is_player_turn = 1;
 
 int main(void){
@@ -35,15 +98,48 @@ int main(void){
 	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, title);
 	SetTargetFPS(60);
     
-	// Map init
-	map_init();
+	/* Level initializations */
+    if (level_register_tile(TILE_WALL, GRAY, 1) != 0){
+        printf("Failed to registering tiles.");
+        exit(1);
+    }
+    
+    if (level_register_tile(TILE_GROUND, LIGHTGRAY, 0) != 0){
+        printf("Failed to registering tiles.");
+        exit(1);
+    }
+    
+    if (level_register_tile(TILE_CLOSED_DOOR, DARKBROWN, 1) != 0){
+        printf("Failed to registering tiles.");
+        exit(1);
+    }
+    
+    if (level_register_tile(TILE_OPENED_DOOR, BROWN, 0) != 0){
+        printf("Failed to registering tiles.");
+        exit(1);
+    }
+    
+    level_init(MAP_WIDTH, MAP_HEIGHT,(int*)map);
     
 	// Player init
 	player *Player;
 	Player = player_init();
+    level_update_entity(Player->map_pos_x, Player->map_pos_y, Player->map_pos_x, Player->map_pos_y, E_PLAYER);
     
 	// Monster init
-	monster_create();
+    for (int i = 0; i < MAX_MONSTER_NUMBER; i++){
+        int x, y;
+        SetRandomSeed((unsigned int)time(NULL));
+        
+        level_get_random_empty_pos(&x, &y);
+        if (monster_create(x, y) != 0){
+            printf("Failed to create a monster");
+            exit(1);
+        }
+        
+        level_update_entity(x, y, x, y, E_MONSTER);
+    }
+    
     
 	message_insert("Welcome to the dungeon of Ayukat.", MESSAGE_NARATIVE);
 	message_insert("Press '?' to show help.", MESSAGE_SYSTEM);
@@ -59,15 +155,6 @@ int main(void){
         int turn_consumed = 0;
         turn_consumed = resolve_input(&dx, &dy);
         
-        // Update
-        //Adding monster to the map
-        monster **monsters = monster_get_all();
-        for (int i = 0; i < MAX_MONSTER_NUMBER; i++){
-            if (monsters[i] != NULL && monsters[i]->is_dead == 0){
-                map_add(monsters[i]->map_pos_x, monsters[i]->map_pos_y, MAP_MONSTER);
-            }
-        }
-        
         // Player Action 
         if (turn_consumed != 0){
             start_player_turn(Player, dx, dy);
@@ -75,6 +162,7 @@ int main(void){
         }
         
         // Monster Action
+        monster **monsters = monster_get_all();
         if (is_player_turn == 0){
             start_monster_turn(monsters, Player);
         }
@@ -82,74 +170,67 @@ int main(void){
         
         BeginDrawing();
         
-		ClearBackground(BLACK);
+        ClearBackground(BLACK);
         
-		// --- TODO: Erase this later ---
-		if (debug_mode == true){
-			DrawRectangle(MAP_AREA_WIDTH, 0, SCREEN_WIDTH - MAP_AREA_WIDTH, MAP_AREA_HEIGHT, GREEN); // Info Area
-			DrawRectangle(0, MAP_AREA_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - MAP_AREA_HEIGHT, RED); // Message Area
-		}
-		// -------------
+        // --- TODO: Erase this later ---
+        if (debug_mode == true){
+            DrawRectangle(MAP_AREA_WIDTH, 0, SCREEN_WIDTH - MAP_AREA_WIDTH, MAP_AREA_HEIGHT, GREEN); // Info Area
+            DrawRectangle(0, MAP_AREA_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - MAP_AREA_HEIGHT, RED); // Message Area
+        }
+        // -------------
         
-		map_draw(Player->map_pos_x, Player->map_pos_y, TILE_SIZE, MAP_RENDER_RANGE_X, MAP_RENDER_RANGE_Y);
+        level_draw(Player->map_pos_x, Player->map_pos_y, TILE_SIZE, MAP_RENDER_RANGE_X, MAP_RENDER_RANGE_Y);
         
-		//Draw Player at center of map area
-		DrawRectangle(TILE_SIZE * MAP_RENDER_RANGE_X, TILE_SIZE * MAP_RENDER_RANGE_Y, TILE_SIZE, TILE_SIZE, BLUE);
+        // Show texts
+        message_show(TEXT_SIZE , 10, MAP_AREA_HEIGHT + 10);
+        player_show_info(Player, TEXT_SIZE, MAP_AREA_WIDTH + 10, 10);
         
-		// Show texts
-		message_show(TEXT_SIZE , 10, MAP_AREA_HEIGHT + 10);
-		player_show_info(Player, TEXT_SIZE, MAP_AREA_WIDTH + 10, 10);
-		
-		EndDrawing();
-	}
+        EndDrawing();
+    }
     
-	player_close(Player);
-	monster_close();
-	CloseWindow();
+    player_close(Player);
+    monster_close();
+    CloseWindow();
     
-	return 0;
+    return 0;
 }
 
-void start_player_turn(player* Player, int dx, int dy)
-{
-	int map_cell = map_get_cell(Player->map_pos_x + dx, Player->map_pos_y + dy);
+void start_player_turn(player* Player, int dx, int dy){
+    cell_data cell = level_get_cell(Player->map_pos_x + dx, Player->map_pos_y + dy);
     
-	if (map_check_collision(map_cell))
+	if (cell.tile->is_collidable != 0)
 	{
-		switch (map_cell) {
-            case MAP_WALL:{
+		switch (cell.tile->id) {
+            case TILE_WALL:{
                 message_insert("You hit the wall. \"OUCH!\"", MESSAGE_NARATIVE);
             }break;
             
-            case MAP_CLOSED_DOOR:{
-                map_open_door(Player->map_pos_x + dx, Player->map_pos_y + dy);
+            case TILE_CLOSED_DOOR:{
+                level_set_tile(Player->map_pos_x + dx, Player->map_pos_y + dy, TILE_OPENED_DOOR); // Opening door
                 message_insert("The door opens quietly.", MESSAGE_NARATIVE);
             }break;
-            
-            case MAP_MONSTER:{
-                
-                // Get monster at the position where is about to move.
-                int monster_id = monster_get_id_from_xy(Player->map_pos_x + dx, Player->map_pos_y + dy);
-                monster *Monster = monster_get_from_id(monster_id);
-                if (Monster == NULL)
-                {
-                    // TODO: logging
-                    printf("Could not find a monster!");
-                    exit(1);
-                }
-                
-                process_combat(Player, Monster, 1);
-                
-            }break;
-            
         }
-    }
-    else
-    {
-        // Update player position if not collide
+    }else if (cell.entity->type == E_MONSTER){
+        
+        // Get monster at the position where is about to move.
+        int monster_id = monster_get_id_from_xy(Player->map_pos_x + dx, Player->map_pos_y + dy);
+        monster *Monster = monster_get_from_id(monster_id);
+        if (Monster == NULL)
+        {
+            // TODO: logging
+            printf("Could not find a monster!");
+            exit(1);
+        }
+        
+        process_combat(Player, Monster, 1);
+    }else{
+        // Update player position if no collision or combat
+        level_update_entity(Player->map_pos_x, Player->map_pos_y,
+                            Player->map_pos_x + dx, Player->map_pos_y + dy, E_PLAYER);
         Player->map_pos_x += dx;
         Player->map_pos_y += dy;
     }
+    
 }
 
 // Return 0 if the player comsumed the turn, set dx&dy in the address given.
@@ -227,25 +308,32 @@ int resolve_input(int *v_dx, int *v_dy)
 
 void start_monster_turn(monster **monsters, player *Player)
 {
+    int dx, dy;
+    dx = 0;
+    dy = 0;
+    
     //check if any monster is adjecent to a player
     for (int i = 0; i < MAX_MONSTER_NUMBER; i++)
     {
-        
-        if (monsters[i]->map_pos_x == Player->map_pos_x ||
-            monsters[i]->map_pos_x == Player->map_pos_x + 1 ||
-            monsters[i]->map_pos_x == Player->map_pos_x - 1)
-        {
+        if (monsters[i]->is_dead == 0){
             
-            if (monsters[i]->map_pos_y == Player->map_pos_y ||
-                monsters[i]->map_pos_y == Player->map_pos_y + 1 ||
-                monsters[i]->map_pos_y == Player->map_pos_y -1)
-            {
+            if (monsters[i]->map_pos_x == Player->map_pos_x ||
+                monsters[i]->map_pos_x == Player->map_pos_x + 1 ||
+                monsters[i]->map_pos_x == Player->map_pos_x - 1){
                 
-                // monster attack player
-                process_combat(Player, monsters[i], 0);
+                if (monsters[i]->map_pos_y == Player->map_pos_y ||
+                    monsters[i]->map_pos_y == Player->map_pos_y + 1 ||
+                    monsters[i]->map_pos_y == Player->map_pos_y -1){
+                    
+                    // monster attack player
+                    process_combat(Player, monsters[i], 0);
+                }
             }
+            level_update_entity(monsters[i]->map_pos_x, monsters[i]->map_pos_y,
+                                monsters[i]->map_pos_x + dx, monsters[i]->map_pos_y + dy,
+                                E_MONSTER);
+            
         }
-        
     }
     
     is_player_turn = 1;
@@ -310,6 +398,8 @@ void process_combat(player* Player, monster *Monster, int is_player_attacking)
         if (Monster->is_dead != 0)
         {
             memset(txt, 0, sizeof(txt));
+            level_update_entity(Monster->map_pos_x,Monster->map_pos_y,
+                                Monster->map_pos_x,Monster->map_pos_y, E_EMPTY);
             sprintf_s(txt, sizeof(char) * MAX_MESSAGE_LENGTH, "You defeated a %s", 
                       Monster->name);
             message_insert(txt, MESSAGE_COMBAT);

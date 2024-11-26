@@ -9,5 +9,5 @@ set incpath=C:\libs\raylib-5.0_win64_msvc16\include
 
 mkdir ..\build
 pushd ..\build
-cl /Zi %files% /I %incpath% /link %libs% /OUT:"dcc.exe" /NODEFAULTLIB:library
+cl /Zi %files% /I %incpath% /link %libs% /OUT:"dcc.exe" /NODEFAULTLIB:LIBCMT
 popd

@@ -8,6 +8,7 @@ typedef struct monster
 {
 	char name[MAX_MONSTER_NAME];
 	int id;
+    //char *sprite;
 	int map_pos_x, map_pos_y;
 	int combat_skill;
 	int strength;
@@ -19,7 +20,7 @@ typedef struct monster
 }monster;
 
 // Public funcs
-extern void monster_create(void);
+extern int monster_create(int x, int y);
 extern int monster_get_id_from_xy(int x, int y);
 extern monster **monster_get_all(void);
 extern monster *monster_get_from_id(int id);

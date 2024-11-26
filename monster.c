@@ -9,71 +9,47 @@ Dependency: map.h
 #include "map.h"
 
 static monster **monsters;
+static unsigned int monster_count;
 
-void monster_create(void)
+int monster_create(int x, int y)
 {	
-	SetRandomSeed((unsigned int)time(NULL));
-    
-	monsters = malloc(sizeof(monster) * MAX_MONSTER_NUMBER);
+    monsters = realloc(monsters, sizeof(monster) * (monster_count + 1));
 	
 	if (monsters == NULL)
 	{
-		printf("Failed to malloc");
-		exit(1);
+		// TODO: log
+        printf("Failed to malloc");
+		return (-1);
 	}
 	
-	for (int i = 0; i < MAX_MONSTER_NUMBER; i++)
-	{
-		monster *Monster;
-		Monster = malloc(sizeof(monster));
-        
-		if (Monster == NULL)
-		{
-			//TODO: logging
-			printf("Failed to malloc");
-			exit(1);
-		}
-        
-		strcpy_s(Monster->name, sizeof(char) * MAX_MONSTER_NAME, "Giant Spider");
-		// TODO: decide randomly
-		Monster->id = i;
-		Monster->hp = 20;
-		Monster->current_hp = Monster->hp;
-		Monster->strength = 1;
-		Monster->toughness = 2;
-		Monster->combat_skill = 35;
-		Monster->base_damage = 2;
-		Monster->is_dead = 0;
-        
-		int reserved_x[MAX_MONSTER_NUMBER] = { -1 };
-		int reserved_y[MAX_MONSTER_NUMBER] = { -1 };
-		int is_duplicate_xy = 0;
-        
-		for (;;)
-		{
-			int randx = GetRandomValue(0, MAP_WIDTH - 1);
-			int randy = GetRandomValue(0, MAP_HEIGHT - 1);
-            
-            
-			for (int j = 0; j < MAX_MONSTER_NUMBER; j++)
-			{
-				if (randx == reserved_x[j] && randy == reserved_y[j]) {
-					is_duplicate_xy = 1;
-				}
-			}
-            
-			if (map_get_cell(randx, randy) == MAP_EMPTY && is_duplicate_xy == 0)
-			{
-				Monster->map_pos_x = randx;
-				Monster->map_pos_y = randy;
-				reserved_x[i] = randx;
-				reserved_y[i] = randy;
-                break;
-			}
-		}
-        
-		monsters[i] = Monster;
-	}
+    monster *Monster;
+    Monster = malloc(sizeof(monster));
+    
+    if (Monster == NULL)
+    {
+        //TODO: logging
+        printf("Failed to malloc");
+        return (-1);
+    }
+    
+    strcpy_s(Monster->name, sizeof(char) * MAX_MONSTER_NAME, "Giant Spider");
+    // TODO: decide randomly
+    Monster->id = monster_count;
+    Monster->hp = 2;
+    Monster->current_hp = Monster->hp;
+    Monster->strength = 1;
+    Monster->toughness = 2;
+    Monster->combat_skill = 35;
+    Monster->base_damage = 2;
+    Monster->is_dead = 0;
+    Monster->map_pos_x = x;
+    Monster->map_pos_y = y;
+    
+	monster_count++;
+    
+    monsters[Monster->id] = Monster;
+    
+    return (0);
 }
 
 monster **monster_get_all(void)
